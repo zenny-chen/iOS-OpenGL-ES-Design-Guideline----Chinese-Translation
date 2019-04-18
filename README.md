@@ -54,7 +54,7 @@ GLSL ES 3.0增添了新的特性，诸如 **uniform blocks**，32位整数与新
 通过允许多重渲染目标，你可以创建同时写到多个帧缓存附件（***framebuffer attachments***）的片段着色器。
 这个特征可允许你使用诸如***延迟着色***（***deferred shading***）这样的高级渲染算法。在这种方式下，你的App先渲染到一组纹理来存放几何数据，然后执行一个或多个着色遍用于从这些纹理中读取数据，然后执行光照计算输出最终的图像。因为这个方法预先计算了对光照计算的输入，所以用于对一个场景增加更大数量的光照所带来的执行开销的增长要小得多。延迟着色算法要求多个渲染目标的支持，如下图所示，以达到理想的性能。否则的话，对多个纹理的渲染需要对每个纹理执行一单独的绘制遍。
 
-![屏幕快照 2018-11-11 下午11.25.01.png](https://upload-images.jianshu.io/upload_images/8136508-c3ab19598e488a25.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-3](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-3.png)
 
 你用一个额外的创建一个帧缓存对象的过程来设置多个渲染目标。不是说要对一个帧缓存创建一单个颜色附件，而是要创建若干个。然后，调用`glDrawBuffers`函数来指定哪些帧缓存附件用于渲染，如以下代码所示。
 
@@ -105,12 +105,12 @@ void main(void)
 图形硬件使用一个高度并行的架构对向量处理进行优化。你可以用新增的变换回馈特性更好地利用此硬件。这个特性可以让你从一个顶点着色器捕获输出，然后再更新到GPU存储器中的缓存对象。你可以从一个渲染遍中捕获数据，然后在另一个渲染遍中使用，或者禁用图形流水线的某些部分，然后对通用目的计算使用变换回馈。
 能从变换回馈只能中受益的一种技术是动画粒子效果。渲染一个粒子系统的一个通用架构由下图列出。首先，App设置粒子模拟的初始状态。然后，对于每一要渲染的帧，App运行一次其模拟的步骤，更新每个被模拟粒子的位置、方向与速度，然后绘制用于表示粒子当前状态的视觉资源。
 
-![屏幕快照 2018-11-12 上午1.28.03.png](https://upload-images.jianshu.io/upload_images/8136508-08c54ec0986a897e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-4](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-4.png)
 
 传统上，实现粒子系统的App在CPU上运行其模拟，将模拟结果存储到一个顶点缓存中用于粒子渲染。然而，将顶点缓存的内容传输到GPU存储器是很耗费时间的。变换回馈通过优化现代GPU硬件可用的并行架构的威力来更有效地解决问题。
 通过变换回馈，你可以设计你自己的渲染引擎来更高效地解决这个问题。下图大概展示了你的App可以如何配置OpenGL ES图形流水线来实现一个粒子系统动画。因为OpenGL ES将每个粒子以及其状态表示为一个顶点，所以GPU的顶点着色器阶段可以一次运行若干个粒子的模拟。因为包含粒子状态数据的顶点缓存在帧与帧之间重用，所以将那些数据传送到GPU存储器的耗时过程仅发生一次，即在初始化时。
 
-![屏幕快照 2018-11-12 上午2.25.00.png](https://upload-images.jianshu.io/upload_images/8136508-ebe850ebf669d796.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-5](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-5.png)
 
 1. 在初始化时，创建一个顶点缓存并用包含在此模拟中的所有粒子的初始状态的数据对它填充。
 1. 在GLSL顶点着色器程序中实现你的粒子模拟，并且通过绘制包含粒子位置数据的顶点缓存的内容，每一帧运行此程序。
@@ -144,7 +144,7 @@ OpenGL ES 1.1仅仅提供了一个基本的固定功能流水线。iOS支持Open
 
 下图对一款App使用OpenGL ES执行动画用于显示的流程做了一个建议
 
-![屏幕快照 2018-11-13 上午1.56.02.png](https://upload-images.jianshu.io/upload_images/8136508-e8a3304a9714bbc2.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-6](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-6.png)
 
 当App启动时，它所做的第一件事就是初始化那些并不打算在整个App执行周期里进行改变的资源。理想情况下，App将这些资源封装为OpenGL ES对象。目标是创建任一对象，在App运行时（或App运行生命周期的某一部分，比如一部游戏中的某一关之中）保持不变，以增加初始化的时间来交换更好的渲染性能。应该用OpenGL ES对象来代替复杂的命令或状态改变，这样可以只需用一单次函数调用。例如，配置固定功能流水线可能需要数十条函数调用。取而代之的是，在初始化时编译一个图形着色器，然后在运行时用一单条函数调用切换到此着色器程序。（言下之意就是我们可以用OpenGL ES 2.0+的可编程着色器来代替OpenGL ES 1.1中的固定功能流水线，以减少函数调用次数，从而获得更好的性能。）需要花费较多时间、较多资源进行创建或修改的OpenGL ES对象应该几乎总是作为**静态对象**进行创建。
 
@@ -201,10 +201,10 @@ OpenGL ES规范没有要求立即执行命令的实现。通常，命令会被�
 ## 使用双缓存来避免资源冲突
 
 当你的App和OpenGL ES同时访问一个OpenGL ES对象时，就会发生资源冲突。当一个参与者企图修改正在被另一个参与者所使用的OpenGL ES对象时，它们可能会被阻塞，直到该对象不再处于使用中。一旦它们开始修改此对象，另一个参与者可能无法访问此对象，直到对该对象的修改完成。还有一种可替换的方式，OpenGL ES可以隐式地复制这个对象，使得两个参与者可以继续执行命令。这两种选择都是安全的，但这每一种都最终会对你的App产生瓶颈。下图展示了这个问题。在此例子中，有一单个纹理对象，该纹理对象OpenGL ES和你的App都想使用。当App企图改变纹理时，它必须等待，直到先前所提交的绘制命令完成——即CPU同步到GPU。
-![屏幕快照 2018-11-16 下午6.10.53.png](https://upload-images.jianshu.io/upload_images/8136508-d675997e4d76e6e6.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-7](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-7.png)
 
 为了解决这个问题，你的App可以在改变对象与用它绘制之间执行额外的工作。但是，如果你的App没有额外的工作可以执行，则应该显式创建两个同样大小的对象；一个参与者读一个对象，而另一个参与者则修改另一个对象。下图展示了双缓存方法。当GPU在对一个纹理进行操作时，CPU则修改另一个。在开始启动之后，CPU与GPU都不会坐等。尽管下图主要针对纹理，但对于其他大部分类型的OpenGL ES对象也能起作用。
-![屏幕快照 2018-11-20 下午6.47.15.png](https://upload-images.jianshu.io/upload_images/8136508-b5bb9b0c0b5d5cab.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Figure 6-8](https://github.com/zenny-chen/iOS-OpenGL-ES-Design-Guideline----Chinese-Translation/blob/master/figure6-8.png)
 
 双缓存对于大部分App都足够了，但它要求两个参与者在差不多相同时刻结束处理命令。为了避免阻塞，你可以添加更多的缓存；这种实现是传统的**生产者-消费者**模型。如果生产者在消费者结束处理命令之前结束，那么它会取一个空闲缓存然后继续处理命令。在这种情境下，生产者只有在消费者被严重拖到后面的时候才会发生闲置。
 双缓存与三重缓存在消耗额外的存储器与防止流水线发生延迟之间进行权衡。对存储器的额外使用可能会导致你App其他部分的压力。在iOS设备上，存储器可能是稀缺的；你的设计可能需要对使用更多的存储器与其他App优化之间做成平衡。
